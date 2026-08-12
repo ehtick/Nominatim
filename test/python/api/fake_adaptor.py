@@ -37,6 +37,12 @@ class FakeAdaptor(glue.ASGIAdaptor):
     def get(self, name, default=None):
         return self.params.get(name, default)
 
+    def get_all(self, name):
+        value = self.params.get(name)
+        if value is None:
+            return []
+        return value if isinstance(value, list) else [value]
+
     def get_header(self, name, default=None):
         return self.headers.get(name, default)
 
