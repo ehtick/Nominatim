@@ -68,6 +68,8 @@ class PoiSearch(base.AbstractSearch):
         if self.countries:
             sql = sql.where(t.c.country_code.in_(self.countries.values))
 
+        sql = base.filter_by_category(sql, t, details)
+
         if details.excluded:
             sql = sql.where(base.exclude_places(t))
 

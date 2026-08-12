@@ -254,3 +254,43 @@ def _sqlite_category_match(element: CategoryMatch,
                                       compiler.process(cls_lit, **kw),
                                       compiler.process(typ_col, **kw),
                                       compiler.process(typ_lit, **kw))
+
+
+class CategoryContains(sa.sql.functions.GenericFunction[Any]):
+    """ Match a placex row against a category or any of its descendants.
+
+        On PostgreSQL this is the ltree containment operator
+        (``categories <@ '<category>'``). On SQLite, where the categories
+        are stored as a comma-separated text, the same is emulated with a
+        substring search.
+    """
+    name = 'CategoryContains'
+    inherit_cache = True
+
+    def __init__(self, table: SaFromClause, category: str) -> None:
+        # The needles for the SQLite variant are precomputed here because
+        # SQLAlchemy 1.4 binds a parameter only once per statement, even
+        # when it is rendered more than once.
+        super().__init__(table.c.categories, sa.literal(category),
+                         sa.literal(f',{category},'), sa.literal(f',{category}.'))
+
+
+@compiles(CategoryContains)
+def _default_category_contains(element: CategoryContains,
+                               compiler: 'sa.Compiled', **kw: Any) -> str:
+    cats, category, _, _ = list(element.clauses)
+    return "(%s <@ (%s)::ltree)" % (compiler.process(cats, **kw),
+                                    compiler.process(category, **kw))
+
+
+@compiles(CategoryContains, 'sqlite')
+def _sqlite_category_contains(element: CategoryContains,
+                              compiler: 'sa.Compiled', **kw: Any) -> str:
+    cats, _, exact, descendants = list(element.clauses)
+    # The categories are padded with the separator on both sides, so that
+    # the needles match only on a full label boundary: ',<category>,' is an
+    # exact hit, ',<category>.' one of its descendants.
+    haystack = "(',' || %s || ',')" % compiler.process(cats, **kw)
+    return "(instr(%s, %s) > 0 OR instr(%s, %s) > 0)" \
+           % (haystack, compiler.process(exact, **kw),
+              haystack, compiler.process(descendants, **kw))

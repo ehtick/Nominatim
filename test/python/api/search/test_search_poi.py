@@ -118,3 +118,71 @@ class TestPoiSearchWithRestrictions:
                              details=SearchDetails.from_kwargs(args))
 
         assert [r.place_id for r in results] == [2]
+
+
+class TestCategoryFilters:
+
+    @pytest.fixture(autouse=True)
+    def fill_database(self, apiobj):
+        # A restaurant that is also a hotel.
+        apiobj.add_placex(place_id=1, class_='amenity', type='restaurant',
+                          categories=['osm.amenity.restaurant', 'osm.tourism.hotel'],
+                          centroid=(10.0, 10.0))
+        # A plain restaurant.
+        apiobj.add_placex(place_id=2, class_='amenity', type='restaurant',
+                          categories=['osm.amenity.restaurant'],
+                          centroid=(10.0, 10.0))
+        # A restaurant that is also a fast food place.
+        apiobj.add_placex(place_id=3, class_='amenity', type='restaurant',
+                          categories=['osm.amenity.restaurant', 'osm.amenity.fast_food'],
+                          centroid=(10.0, 10.0))
+
+    def run(self, apiobj, frontend, **kwargs):
+        results = run_search(apiobj, frontend, 0.1, [('amenity', 'restaurant')],
+                             details=SearchDetails.from_kwargs(kwargs))
+        return sorted(r.place_id for r in results)
+
+    def test_no_filter(self, apiobj, frontend):
+        assert self.run(apiobj, frontend) == [1, 2, 3]
+
+    def test_include_exact(self, apiobj, frontend):
+        assert self.run(apiobj, frontend, include=['osm.tourism.hotel']) == [1]
+
+    @pytest.mark.parametrize('category,expected', [('osm.amenity', [1, 2, 3]),
+                                                   ('osm.tourism', [1])])
+    def test_include_matches_descendants(self, apiobj, frontend, category, expected):
+        assert self.run(apiobj, frontend, include=[category]) == expected
+
+    @pytest.mark.parametrize('category', ['osm.amenity.fast', 'osm.amen.restaurant'])
+    def test_include_does_not_match_partial_label(self, apiobj, frontend, category):
+        assert self.run(apiobj, frontend, include=[category]) == []
+
+    def test_include_comma_is_or(self, apiobj, frontend):
+        assert self.run(apiobj, frontend,
+                        include=['osm.tourism.hotel,osm.amenity.fast_food']) == [1, 3]
+
+    @pytest.mark.parametrize('categories,expected', [
+        (['osm.tourism.hotel', 'osm.amenity.fast_food'], []),
+        (['osm.amenity.restaurant', 'osm.tourism.hotel'], [1])])
+    def test_include_repeated_is_and(self, apiobj, frontend, categories, expected):
+        assert self.run(apiobj, frontend, include=categories) == expected
+
+    def test_exclude_exact(self, apiobj, frontend):
+        assert self.run(apiobj, frontend, exclude=['osm.tourism.hotel']) == [2, 3]
+
+    def test_exclude_matches_descendants(self, apiobj, frontend):
+        assert self.run(apiobj, frontend, exclude=['osm.amenity']) == []
+
+    @pytest.mark.parametrize('group,expected', [
+        ('osm.tourism.hotel,osm.amenity.fast_food', [1, 2, 3]),
+        ('osm.tourism.hotel,osm.amenity.restaurant', [2, 3])])
+    def test_exclude_comma_needs_all(self, apiobj, frontend, group, expected):
+        assert self.run(apiobj, frontend, exclude=[group]) == expected
+
+    def test_exclude_repeated_is_or(self, apiobj, frontend):
+        assert self.run(apiobj, frontend,
+                        exclude=['osm.tourism.hotel', 'osm.amenity.fast_food']) == [2]
+
+    def test_include_and_exclude(self, apiobj, frontend):
+        assert self.run(apiobj, frontend, include=['osm.amenity'],
+                        exclude=['osm.tourism.hotel']) == [2, 3]

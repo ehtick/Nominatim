@@ -74,6 +74,8 @@ async def _get_placex_housenumbers(conn: SearchConnection,
     sql = base.select_placex(t).add_columns(t.c.importance)\
                                .where(t.c.place_id.in_(place_ids))
 
+    sql = base.filter_by_category(sql, t, details)
+
     if details.geometry_output:
         sql = base.add_geometry_columns(sql, t.c.geometry, details)
 
@@ -210,6 +212,14 @@ class AddressSearch(base.AbstractSearch):
 
         sql = base.select_placex(t).join(tsearch, t.c.place_id == tsearch.c.place_id)
 
+        # The category filter must not restrict the query itself: the rows
+        # here are the parents used to find the housenumbers and only become
+        # a result of their own when no housenumber was found. Carry the
+        # match along as a column and apply it when collecting the results.
+        catfilter = base.category_restriction(t, details)
+        if catfilter is not None:
+            sql = sql.add_columns(catfilter.label('cat_match'))
+
         if details.geometry_output:
             sql = base.add_geometry_columns(sql, t.c.geometry, details)
 
@@ -269,7 +279,9 @@ class AddressSearch(base.AbstractSearch):
                     if n.isdecimal() and len(n) < 8]
         interpol_sql: SaColumn
         tiger_sql: SaColumn
-        if numerals and \
+        # Interpolations and Tiger data carry no categories, so they cannot
+        # satisfy an include filter.
+        if numerals and not details.include and \
            (not self.qualifiers or ('place', 'house') in self.qualifiers.values):
             # Housenumbers from interpolations
             interpol_sql = _make_interpolation_subquery(conn.t.osmline, inner,
@@ -339,6 +351,7 @@ class AddressSearch(base.AbstractSearch):
                 # filter conditions.
                 if (not details.excluded or result.place_id not in details.excluded_place_ids)\
                    and (not self.qualifiers or result.category in self.qualifiers.values)\
+                   and (catfilter is None or row.cat_match)\
                    and result.rank_address >= details.min_rank:
                     result.accuracy += 1.0  # penalty for missing housenumber
                     results.append(result)
