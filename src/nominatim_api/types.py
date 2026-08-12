@@ -517,6 +517,36 @@ def format_categories(categories: List[Tuple[str, str]]) -> List[Tuple[str, str]
     return categories
 
 
+CATEGORY_RE = re.compile(r'[A-Za-z0-9_-]{1,255}(\.[A-Za-z0-9_-]{1,255})+')
+
+
+def format_category_filters(filters: Any) -> list[list[str]]:
+    """ Parse category filters into a list of groups of categories.
+
+        Each entry of 'filters' is a comma-separated list of categories which
+        together form one group. A category must consist of at least two
+        dot-separated labels. Hyphens are folded to underscores because the
+        categories are stored that way (see the Lua sanitize_label()).
+    """
+    if isinstance(filters, str):
+        filters = [filters]
+
+    result = []
+    for group in filters:
+        if not isinstance(group, str):
+            raise UsageError("Category filters must be strings.")
+        categories = []
+        for category in group.split(','):
+            category = category.strip()
+            if not CATEGORY_RE.fullmatch(category):
+                raise UsageError(f"Invalid category '{category}'. A category must consist"
+                                 " of at least two labels separated by dots.")
+            categories.append(category.replace('-', '_'))
+        result.append(categories)
+
+    return result
+
+
 TParam = TypeVar('TParam', bound='LookupDetails')
 
 
@@ -659,6 +689,23 @@ class SearchDetails(LookupDetails):
                                                           metadata={'transform': format_categories})
     """ Restrict search to places with one of the given class/type categories.
         An empty list (the default) will disable this filter.
+    """
+
+    include: list[list[str]] = \
+        dataclasses.field(default_factory=list,
+                          metadata={'transform': format_category_filters})
+    """ Restrict search to places matching the given categories. A place must
+        match at least one category of every group and matches a category when
+        it is assigned the category itself or one of its descendants. An empty
+        list (the default) will disable this filter.
+    """
+
+    exclude: list[list[str]] = \
+        dataclasses.field(default_factory=list,
+                          metadata={'transform': format_category_filters})
+    """ Drop places matching the given categories from the results. A place is
+        dropped when it matches all categories of any of the groups. An empty
+        list (the default) will disable this filter.
     """
 
     viewbox_x2: Optional[Bbox] = None

@@ -86,6 +86,51 @@ class TestFormatExcluded:
             typ.format_excluded(inp)
 
 
+class TestFormatCategoryFilters:
+
+    def test_empty(self):
+        assert typ.format_category_filters([]) == []
+
+    def test_single_string(self):
+        assert typ.format_category_filters('osm.amenity.restaurant') \
+               == [['osm.amenity.restaurant']]
+
+    def test_comma_separated_is_one_group(self):
+        assert typ.format_category_filters(['osm.amenity.cafe,osm.amenity.bar']) \
+               == [['osm.amenity.cafe', 'osm.amenity.bar']]
+
+    def test_repeated_parameter_makes_groups(self):
+        assert typ.format_category_filters(['osm.tourism.hotel', 'osm.amenity.restaurant']) \
+               == [['osm.tourism.hotel'], ['osm.amenity.restaurant']]
+
+    def test_surrounding_whitespace_ignored(self):
+        assert typ.format_category_filters([' osm.amenity.cafe , osm.amenity.bar ']) \
+               == [['osm.amenity.cafe', 'osm.amenity.bar']]
+
+    def test_hyphens_folded_to_underscores(self):
+        assert typ.format_category_filters(['osm.shop.car-repair']) \
+               == [['osm.shop.car_repair']]
+
+    def test_more_than_two_labels(self):
+        assert typ.format_category_filters(['osm.boundary.administrative.4']) \
+               == [['osm.boundary.administrative.4']]
+
+    @pytest.mark.parametrize('inp', ['osm', '', '.', 'osm.', '.amenity', 'osm..cafe',
+                                     'osm.amenity restaurant', 'osm.amenity;cafe',
+                                     'osm.amenity.' + 'x' * 256])
+    def test_invalid_category(self, inp):
+        with pytest.raises(UsageError, match='Invalid category'):
+            typ.format_category_filters([inp])
+
+    def test_invalid_category_in_group(self):
+        with pytest.raises(UsageError, match='Invalid category'):
+            typ.format_category_filters(['osm.amenity.cafe,osm'])
+
+    def test_non_string(self):
+        with pytest.raises(UsageError, match='must be strings'):
+            typ.format_category_filters([12])
+
+
 @pytest.mark.parametrize('inp,expected', [
     ('Pus:94110', typ.PostcodeRef('us', '94110')),
     ('Pgb:EH4_7EA', typ.PostcodeRef('gb', 'EH4 7EA')),
