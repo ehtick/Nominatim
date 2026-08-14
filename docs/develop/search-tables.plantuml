@@ -29,13 +29,21 @@ map placex {
   indexed_date => TIMESTAMP
   centroid => GEOMETRY
   geometry => GEOMETRY
-  token_info JSONB
+  categories => LTREE[]
+  token_info => JSONB
+}
+
+map placex_entrance {
+  place_id => BIGINT
+  osm_id => BIGINT
+  type => TEXT
+  location => GEOMETRY
+  extratags => HSTORE
 }
 
 map search_name {
   place_id => BIGINT
   importance => DOUBLE
-  search_rank => SMALLINT
   address_rank => SMALLINT
   name_vector => INT[]
   nameaddress_vector => INT[]
@@ -57,6 +65,7 @@ map location_property_osmline {
   endnumber => INT
   step => int
   address => HSTORE
+  partition => SMALLINT
   geometry_sector => INT
   parent_place_id => BIGINT
   country_code => VARCHAR(2)
@@ -64,7 +73,7 @@ map location_property_osmline {
   indexed_status => SMALLINT
   indexed_date => TIMESTAMP
   linegeo => GEOMETRY
-  token_info JSONB
+  token_info => JSONB
 }
 
 map place_addressline {
@@ -85,13 +94,15 @@ map location_postcodes {
   rank_search => SMALLINT
   indexed_status => SMALLINT
   indexed_date => TIMESTAMP
+  is_area => BOOLEAN
   geometry => GEOMETRY
-  centroid -> GEOMETRY
+  centroid => GEOMETRY
 }
 
 placex::place_id <-- search_name::place_id
 placex::place_id <-- place_addressline::place_id
 placex::place_id <-- place_addressline::address_place_id
+placex::place_id <-- placex_entrance::place_id
 
 search_name::name_vector --> word::word_id
 search_name::nameaddress_vector --> word::word_id
@@ -99,5 +110,6 @@ search_name::nameaddress_vector --> word::word_id
 place_addressline -[hidden]> location_property_osmline
 search_name -[hidden]> place_addressline
 location_property_osmline -[hidden]-> location_postcodes
+location_postcodes -[hidden]-> placex_entrance
 
 @enduml
