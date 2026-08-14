@@ -66,21 +66,43 @@ flex.load_topic('full', {with_extratags = true})
 
 When Nominatim processes an OSM object, it looks for four kinds of tags:
 The _main tags_ classify what kind of place the OSM object represents. One
-OSM object can have more than one main tag. In such case one database entry
-is created for each main tag. _Name tags_ represent searchable names of the
-place. _Address tags_ are used to compute the address information of the place.
-Address tags are used for searching and for creating a display name of the place.
+OSM object can have more than one main tag. All of them end up in the same
+database entry, which gets one _category_ per main tag. _Name tags_ represent
+searchable names of the place. _Address tags_ are used to compute the address
+information of the place. Address tags are used for searching and for creating
+a display name of the place.
 _Extra tags_ are any tags that are not directly related to search but
 contain interesting additional information. These are just saved in the database
 and may be returned with the result [on request](../api/Search.md#output-details).
 
 !!! danger
-    Some tags in the extratags category are used by Nominatim to better
+    Some of the extra tags are used by Nominatim to better
     classify the place. These tags will always be added, independent of
     any settings in the style.
 
 Configuring the style means deciding which key and/or key/value is used
-in which category.
+as which kind of tag.
+
+### Categories
+
+A category is derived from a main tag and written as `osm.<key>.<value>`.
+An object tagged with `tourism=hotel` and `amenity=restaurant` therefore gets
+the categories `osm.tourism.hotel` and `osm.amenity.restaurant`. Categories are
+hierarchical and can be used to filter search results, see the
+[search API](../api/Search.md#result-restriction).
+
+A key or value may only be turned into a category label if it consists
+solely of ASCII letters (upper- or lower-case), digits, underscore and
+hyphen; hyphens are then replaced with underscores, so the resulting label
+itself never contains one. A main tag whose value contains any other
+character gets the category `osm.<key>.yes`. When the key itself contains
+such a character, then no category is created for the tag at all.
+
+Nominatim also needs a single main tag to classify and rank the place. It is
+saved as the `class` and `type` of the place and returned in the
+`category`/`type` fields of a result. When an object has more than one main
+tag, then the alphabetically first key/value pair wins. Tags classified as
+`fallback` (see [below](#main-tags)) never win against another main tag.
 
 ## Changing the recognized tags
 
@@ -111,8 +133,8 @@ The following classifications are recognized:
 | :-------------- | :------ |
 | always          | Unconditionally use this tag as a main tag. |
 | named           | Consider as main tag, when the object has a primary name (see [names](#name-tags) below) |
-| named_with_key  | Consider as main tag, when the object has a primary name with a domain prefix. For example, if the main tag is  `bridge=yes`, then it will only be added as an extra entry, if there is a tag `bridge:name[:XXX]` for the same object. If this property is set, all names that are not domain-specific are ignored. |
-| fallback        | Consider as main tag only when no other main tag was found. Fallback always implies `named`, i.e. fallbacks are only tried for objects with primary names. |
+| named_with_key  | Consider as main tag, when the object has a primary name with a domain prefix. For example, if the main tag is  `bridge=yes`, then it will only be used, if there is a tag `bridge:name[:XXX]` for the same object. If this property is set, all names that are not domain-specific are ignored. |
+| fallback        | Use as main tag, but only make it the class and type of the place when no other main tag was found. Fallback always implies `named`, i.e. fallbacks are only tried for objects with primary names. |
 | postcode_area   | Tag indicates a postcode area. Copy area into the table of postcodes but only when the object is a relation and has a postcode tagged. |
 | delete          | Completely ignore the tag in any further processing |
 | extra           | Move the tag to extratags and then ignore it for further processing |
@@ -148,8 +170,9 @@ then `set_main_tags{highway = 'delete'}` will result in a rule
     always included with two exceptions: the troll tag `highway=no` is
     deleted on the spot. And when the value is `street_lamp` then the object
     must also have a name, to be included. Finally, if a `landuse` tag is
-    present then it will be used independently of the concrete value when
-    neither boundary nor highway tags were found and the object is named.
+    present on a named object then it is used independently of the concrete
+    value, but it only determines the class and type of the place when neither
+    a boundary nor a highway tag was found.
 
 ##### Presets
 
