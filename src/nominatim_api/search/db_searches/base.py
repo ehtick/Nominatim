@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 from ...typing import SaFromClause, SaSelect, SaColumn, SaExpression, SaLambdaSelect
 from ...sql.sqlalchemy_types import Geometry
-from ...sql.sqlalchemy_functions import CategoryMatch, CategoryContains
+from ...sql.sqlalchemy_functions import CategoryMatch
 from ...connection import SearchConnection
 from ...types import SearchDetails, DataLayer, GeometryFormat
 from ...results import SearchResults
@@ -53,9 +53,9 @@ def category_ltree(cls: str, typ: str) -> str:
 
 def category_filter(table: SaFromClause, cls: str, typ: str) -> SaExpression:
     """ Build a boolean expression selecting rows of the given class/type
-        category via the ltree categories column (class/type on SQLite).
+        category via the categories column.
     """
-    return CategoryMatch(table, category_ltree(cls, typ), cls, typ)
+    return CategoryMatch(table, category_ltree(cls, typ))
 
 
 def category_restriction(table: SaFromClause,
@@ -69,10 +69,10 @@ def category_restriction(table: SaFromClause,
     terms: list[SaExpression] = []
 
     for group in details.include:
-        terms.append(sa.or_(*(CategoryContains(table, cat) for cat in group)))
+        terms.append(sa.or_(*(CategoryMatch(table, cat) for cat in group)))
 
     for group in details.exclude:
-        terms.append(sa.not_(sa.and_(*(CategoryContains(table, cat) for cat in group))))
+        terms.append(sa.not_(sa.and_(*(CategoryMatch(table, cat) for cat in group))))
 
     if not terms:
         return None

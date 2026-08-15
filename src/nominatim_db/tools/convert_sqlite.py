@@ -165,7 +165,7 @@ class SqliteWriter:
             await self.create_index('search_name', 'place_id')
             await self.create_index('osmline', 'parent_place_id')
             await self.create_index('tiger', 'parent_place_id')
-            # SQLite has no ltree, so category search matches on class/type.
+            # Used by the qualifier restriction of the name searches.
             await self.create_index('placex', 'class_', 'type')
             await self.create_search_index()
 
