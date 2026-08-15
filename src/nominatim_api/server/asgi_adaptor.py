@@ -30,16 +30,11 @@ class ASGIAdaptor(abc.ABC):
             not provided, return the 'default' value.
         """
 
+    @abc.abstractmethod
     def get_all(self, name: str) -> list[str]:
         """ Return all values of an input parameter that was repeated in the
             request. Returns an empty list when the parameter was not provided.
-
-            This default implementation only ever returns the first value.
-            Adaptors that can access repeated parameters should override it.
         """
-        value = self.get(name)
-
-        return [] if value is None else [value]
 
     @abc.abstractmethod
     def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
