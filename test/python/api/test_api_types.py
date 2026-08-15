@@ -107,16 +107,13 @@ class TestFormatCategoryFilters:
         assert typ.format_category_filters([' osm.amenity.cafe , osm.amenity.bar ']) \
                == [['osm.amenity.cafe', 'osm.amenity.bar']]
 
-    def test_hyphens_folded_to_underscores(self):
-        assert typ.format_category_filters(['osm.shop.car-repair']) \
-               == [['osm.shop.car_repair']]
-
     def test_more_than_two_labels(self):
         assert typ.format_category_filters(['osm.boundary.administrative.4']) \
                == [['osm.boundary.administrative.4']]
 
     @pytest.mark.parametrize('inp', ['osm', '', '.', 'osm.', '.amenity', 'osm..cafe',
                                      'osm.amenity restaurant', 'osm.amenity;cafe',
+                                     'osm.shop.car-repair',
                                      'osm.amenity.' + 'x' * 256])
     def test_invalid_category(self, inp):
         with pytest.raises(UsageError, match='Invalid category'):

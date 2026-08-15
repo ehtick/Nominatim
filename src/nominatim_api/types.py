@@ -517,7 +517,7 @@ def format_categories(categories: List[Tuple[str, str]]) -> List[Tuple[str, str]
     return categories
 
 
-CATEGORY_RE = re.compile(r'[A-Za-z0-9_-]{1,255}(\.[A-Za-z0-9_-]{1,255})+')
+CATEGORY_RE = re.compile(r'[A-Za-z0-9_]{1,255}(\.[A-Za-z0-9_]{1,255})+')
 
 
 def format_category_filters(filters: Any) -> list[list[str]]:
@@ -525,8 +525,7 @@ def format_category_filters(filters: Any) -> list[list[str]]:
 
         Each entry of 'filters' is a comma-separated list of categories which
         together form one group. A category must consist of at least two
-        dot-separated labels. Hyphens are folded to underscores because the
-        categories are stored that way (see the Lua sanitize_label()).
+        dot-separated labels made up of letters, digits and underscores.
     """
     if isinstance(filters, str):
         filters = [filters]
@@ -541,7 +540,7 @@ def format_category_filters(filters: Any) -> list[list[str]]:
             if not CATEGORY_RE.fullmatch(category):
                 raise UsageError(f"Invalid category '{category}'. A category must consist"
                                  " of at least two labels separated by dots.")
-            categories.append(category.replace('-', '_'))
+            categories.append(category)
         result.append(categories)
 
     return result
