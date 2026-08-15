@@ -446,6 +446,30 @@ Feature: Search queries
           | osm.building.yes |
         Then exactly 0 results are returned
 
+    Scenario: Repeated include parameters must all match
+        When geocoding "Boccia Club"
+          | param   | value                     |
+          | include | osm.leisure.sports_centre |
+          | include | osm.building.yes          |
+        Then more than 0 results are returned
+        When geocoding "Boccia Club"
+          | param   | value                     |
+          | include | osm.leisure.sports_centre |
+          | include | osm.amenity.cafe          |
+        Then exactly 0 results are returned
+
+    Scenario: Repeated exclude parameters drop results matching any of them
+        When geocoding "Boccia Club"
+          | param   | value            |
+          | exclude | osm.amenity.cafe |
+          | exclude | osm.building.yes |
+        Then exactly 0 results are returned
+        When geocoding "Boccia Club"
+          | param   | value             |
+          | exclude | osm.amenity.cafe  |
+          | exclude | osm.tourism.hotel |
+        Then more than 0 results are returned
+
     Scenario Outline: Invalid categories are rejected
         When sending v1/search
           | q | <param> |

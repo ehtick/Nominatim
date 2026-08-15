@@ -29,9 +29,15 @@ class APIRunner:
 
         if datatable:
             if datatable[0] == ['param', 'value']:
-                base_params.update(datatable[1:])
+                rows = datatable[1:]
             else:
-                base_params.update(zip(datatable[0], datatable[1]))
+                rows = list(zip(datatable[0], datatable[1]))
+
+            # A parameter listed more than once is sent as a repeated parameter.
+            params = {}
+            for name, value in rows:
+                params.setdefault(name, []).append(value)
+            base_params.update(params)
 
         return self.run(endpoint, base_params, http_headers)
 
@@ -44,7 +50,7 @@ class APIRunner:
 
             async with falcon.testing.ASGIConductor(app) as conductor:
                 response = await conductor.get("/" + endpoint, params=params,
-                                               headers=http_headers)
+                                               params_csv=False, headers=http_headers)
 
             return APIResponse(endpoint, response.status_code,
                                response.text, response.headers)
