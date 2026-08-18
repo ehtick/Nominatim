@@ -183,6 +183,7 @@ class PlaceSearch(base.AbstractSearch):
                  .where(t.c.indexed_status == 0)
         if self.qualifiers:
             sql = sql.where(self.qualifiers.sql_restrict(t))
+        sql = base.filter_by_category(sql, t, details)
         if details.layers is not None:
             sql = sql.where(base.filter_by_layer(t, details.layers))
 

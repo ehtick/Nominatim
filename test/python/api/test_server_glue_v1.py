@@ -602,6 +602,34 @@ class TestSearchEndPointSearch:
             await glue.search_endpoint(napi.NominatimAPIAsync(), a)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize('params,include,exclude', [
+        ({}, [], []),
+        ({'include': 'osm.amenity.cafe'}, ['osm.amenity.cafe'], []),
+        ({'include': ['osm.tourism.hotel', 'osm.amenity.restaurant']},
+         ['osm.tourism.hotel', 'osm.amenity.restaurant'], []),
+        ({'exclude': ['osm.amenity.fast_food']}, [], ['osm.amenity.fast_food']),
+        ({'include': 'osm.amenity', 'exclude': 'osm.amenity.fast_food'},
+         ['osm.amenity'], ['osm.amenity.fast_food']),
+        ])
+    async def test_search_category_filters(self, monkeypatch, params, include, exclude):
+        details = {}
+
+        async def _search(self, query, **kwargs):
+            details.update(kwargs)
+            return napi.SearchResults()
+
+        monkeypatch.setattr(napi.NominatimAPIAsync, 'search', _search)
+
+        a = FakeAdaptor()
+        a.params['q'] = 'something'
+        a.params.update(params)
+
+        await glue.search_endpoint(napi.NominatimAPIAsync(), a)
+
+        assert details['include'] == include
+        assert details['exclude'] == exclude
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize('dedupe,numres', [(True, 1), (False, 2)])
     async def test_search_dedupe(self, dedupe, numres):
         self.results = self.results * 2

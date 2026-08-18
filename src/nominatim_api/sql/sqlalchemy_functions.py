@@ -223,34 +223,40 @@ def sqlite_regexp_nocase(element: RegexpWord, compiler: 'sa.Compiled', **kw: Any
 
 
 class CategoryMatch(sa.sql.functions.GenericFunction[Any]):
-    """ Match a placex row against a single (class, type) category.
+    """ Match a placex row against a category or any of its descendants.
 
         On PostgreSQL this queries the ltree 'categories' column using the
-        GiST index (``categories <@ 'osm.<class>.<type>'``). On SQLite, which
-        has no ltree support, it matches on the class/type columns instead.
+        GiST index (``categories <@ '<category>'``). On SQLite, where the
+        categories are stored as a comma-separated text, the same is
+        emulated with a substring search.
     """
     name = 'CategoryMatch'
     inherit_cache = True
 
-    def __init__(self, table: SaFromClause, ltree: str, cls: str, typ: str) -> None:
-        super().__init__(table.c.categories, sa.literal(ltree),
-                         table.c.class_, sa.literal(cls),
-                         table.c.type, sa.literal(typ))
+    def __init__(self, table: SaFromClause, category: str) -> None:
+        # The needles for the SQLite variant are precomputed here because
+        # SQLAlchemy 1.4 binds a parameter only once per statement, even
+        # when it is rendered more than once.
+        super().__init__(table.c.categories, sa.literal(category),
+                         sa.literal(f',{category},'), sa.literal(f',{category}.'))
 
 
 @compiles(CategoryMatch)
 def _default_category_match(element: CategoryMatch,
                             compiler: 'sa.Compiled', **kw: Any) -> str:
-    cats, ltree, _, _, _, _ = list(element.clauses)
+    cats, category, _, _ = list(element.clauses)
     return "(%s <@ (%s)::ltree)" % (compiler.process(cats, **kw),
-                                    compiler.process(ltree, **kw))
+                                    compiler.process(category, **kw))
 
 
 @compiles(CategoryMatch, 'sqlite')
 def _sqlite_category_match(element: CategoryMatch,
                            compiler: 'sa.Compiled', **kw: Any) -> str:
-    _, _, cls_col, cls_lit, typ_col, typ_lit = list(element.clauses)
-    return "(%s = %s AND %s = %s)" % (compiler.process(cls_col, **kw),
-                                      compiler.process(cls_lit, **kw),
-                                      compiler.process(typ_col, **kw),
-                                      compiler.process(typ_lit, **kw))
+    cats, _, exact, descendants = list(element.clauses)
+    # The categories are padded with the separator on both sides, so that
+    # the needles match only on a full label boundary: ',<category>,' is an
+    # exact hit, ',<category>.' one of its descendants.
+    haystack = "(',' || %s || ',')" % compiler.process(cats, **kw)
+    return "(instr(%s, %s) > 0 OR instr(%s, %s) > 0)" \
+           % (haystack, compiler.process(exact, **kw),
+              haystack, compiler.process(descendants, **kw))

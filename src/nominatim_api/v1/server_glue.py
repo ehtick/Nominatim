@@ -346,6 +346,8 @@ async def search_endpoint(api: NominatimAPIAsync, params: ASGIAdaptor) -> Any:
     details['viewbox'] = params.get('viewbox', None) or params.get('viewboxlbrt', None)
     details['bounded_viewbox'] = params.get_bool('bounded', False)
     details['dedupe'] = params.get_bool('dedupe', True)
+    details['include'] = params.get_all('include')
+    details['exclude'] = params.get_all('exclude')
 
     max_results = max(1, min(50, params.get_int('limit', 10)))
     details['max_results'] = (max_results + min(10, max_results)

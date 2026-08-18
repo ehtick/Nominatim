@@ -31,6 +31,12 @@ class ASGIAdaptor(abc.ABC):
         """
 
     @abc.abstractmethod
+    def get_all(self, name: str) -> list[str]:
+        """ Return all values of an input parameter that was repeated in the
+            request. Returns an empty list when the parameter was not provided.
+        """
+
+    @abc.abstractmethod
     def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
         """ Return a HTTP header parameter as a string. If the parameter was
             not provided, return the 'default' value.

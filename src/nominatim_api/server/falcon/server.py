@@ -77,6 +77,9 @@ class ParamWrapper(ASGIAdaptor):
     def get(self, name: str, default: Optional[str] = None) -> Optional[str]:
         return self.request.get_param(name, default=default)
 
+    def get_all(self, name: str) -> list[str]:
+        return self.request.get_param_as_list(name, default=[])
+
     def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
         return self.request.get_header(name, default=default)
 

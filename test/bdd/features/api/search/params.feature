@@ -407,3 +407,77 @@ Feature: Search queries
           | polygon_text | geotext            |
           | polygon_svg  | svg                |
           | polygon_kml  | geokml             |
+
+    Scenario: Restrict results to a category
+        When geocoding "Boccia Club"
+          | include |
+          | osm.leisure.sports_centre |
+        Then more than 0 results are returned
+        When geocoding "Boccia Club"
+          | include |
+          | osm.amenity.cafe |
+        Then exactly 0 results are returned
+
+    Scenario: A category matches all its descendants
+        When geocoding "Boccia Club"
+          | include |
+          | osm.leisure |
+        Then more than 0 results are returned
+        When geocoding "Boccia Club"
+          | include |
+          | osm.tourism |
+        Then exactly 0 results are returned
+
+    Scenario: A place matches any of its categories
+        When geocoding "Boccia Club"
+          | include |
+          | osm.building.yes |
+        Then more than 0 results are returned
+
+    Scenario: Comma-separated categories match any of them
+        When geocoding "Boccia Club"
+          | include |
+          | osm.amenity.cafe,osm.leisure.sports_centre |
+        Then more than 0 results are returned
+
+    Scenario: Exclude drops results of the given category
+        When geocoding "Boccia Club"
+          | exclude |
+          | osm.building.yes |
+        Then exactly 0 results are returned
+
+    Scenario: Repeated include parameters must all match
+        When geocoding "Boccia Club"
+          | param   | value                     |
+          | include | osm.leisure.sports_centre |
+          | include | osm.building.yes          |
+        Then more than 0 results are returned
+        When geocoding "Boccia Club"
+          | param   | value                     |
+          | include | osm.leisure.sports_centre |
+          | include | osm.amenity.cafe          |
+        Then exactly 0 results are returned
+
+    Scenario: Repeated exclude parameters drop results matching any of them
+        When geocoding "Boccia Club"
+          | param   | value            |
+          | exclude | osm.amenity.cafe |
+          | exclude | osm.building.yes |
+        Then exactly 0 results are returned
+        When geocoding "Boccia Club"
+          | param   | value             |
+          | exclude | osm.amenity.cafe  |
+          | exclude | osm.tourism.hotel |
+        Then more than 0 results are returned
+
+    Scenario Outline: Invalid categories are rejected
+        When sending v1/search
+          | q | <param> |
+          | Boccia Club | <value> |
+        Then a HTTP 400 is returned
+
+        Examples:
+          | param   | value |
+          | include | osm |
+          | include | |
+          | exclude | osm.amenity;cafe |

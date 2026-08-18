@@ -36,7 +36,14 @@ class CategoryArray(sa.types.UserDefinedType):  # type: ignore[type-arg]
     def result_processor(self, dialect: 'sa.Dialect',
                          coltype: object) -> Optional[Callable[[Any], Any]]:
         if dialect.name == 'postgresql':
-            return None
+            def process_pg(value: Any) -> Optional[list[str]]:
+                # ltree[] is unknown to the driver, so it hands out the
+                # literal text representation of the array.
+                if value is None or isinstance(value, list):
+                    return value
+                value = value.strip('{}')
+                return value.split(',') if value else []
+            return process_pg
 
         def process(value: Any) -> Optional[list[str]]:
             return value.split(',') if value else None

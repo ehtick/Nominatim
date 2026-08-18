@@ -711,6 +711,16 @@ class NominatimAPI:
               categories (list[tuple]): Restrict search to places of the given
                 categories. The category is the main OSM tag assigned to each
                 place. An empty list (the default) disables this filter.
+              include (list[list[str]]): Restrict search to places matching the
+                given hierarchical categories, e.g. `osm.amenity.restaurant`.
+                A place must match at least one category of every group and
+                matches a category when it is assigned the category itself or
+                one of its descendants. An empty list (the default) disables
+                this filter.
+              exclude (list[list[str]]): Drop places matching the given
+                hierarchical categories from the results. A place is dropped
+                when it matches all categories of any of the groups. An empty
+                list (the default) disables this filter.
               geometry_output (enum): Add the full geometry of the place to the result.
                 Multiple formats may be selected. Note that geometries can become
                 quite large. (Default: none)
@@ -829,6 +839,16 @@ class NominatimAPI:
               categories (list[tuple]): Restrict search to places of the given
                 categories. The category is the main OSM tag assigned to each
                 place. An empty list (the default) disables this filter.
+              include (list[list[str]]): Restrict search to places matching the
+                given hierarchical categories, e.g. `osm.amenity.restaurant`.
+                A place must match at least one category of every group and
+                matches a category when it is assigned the category itself or
+                one of its descendants. An empty list (the default) disables
+                this filter.
+              exclude (list[list[str]]): Drop places matching the given
+                hierarchical categories from the results. A place is dropped
+                when it matches all categories of any of the groups. An empty
+                list (the default) disables this filter.
               geometry_output (enum): Add the full geometry of the place to the result.
                 Multiple formats may be selected. Note that geometries can become
                 quite large. (Default: none)

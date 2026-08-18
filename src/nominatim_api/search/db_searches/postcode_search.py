@@ -39,6 +39,11 @@ class PostcodeSearch(base.AbstractSearch):
                      details: SearchDetails) -> nres.SearchResults:
         """ Find results for the search in the database.
         """
+        # Postcodes carry no categories, so they can never satisfy an
+        # include filter.
+        if details.include:
+            return nres.SearchResults()
+
         t = conn.t.postcode
         pcs = self.postcodes.values
 

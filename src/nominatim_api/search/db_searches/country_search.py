@@ -44,6 +44,7 @@ class CountrySearch(base.AbstractSearch):
         if details.excluded:
             sql = sql.where(base.exclude_places(t))
 
+        sql = base.filter_by_category(sql, t, details)
         sql = base.filter_by_area(sql, t, details)
 
         bind_params = {
@@ -77,6 +78,11 @@ class CountrySearch(base.AbstractSearch):
         # usually are in the first batch of results and it is not possible
         # to exclude these fallbacks.
         if details.excluded:
+            return nres.SearchResults()
+
+        # The fallback tables carry no categories, so there is no way to tell
+        # if the country would satisfy the include filter.
+        if details.include:
             return nres.SearchResults()
 
         t = conn.t.country_name

@@ -7,7 +7,7 @@
 """
 Interface for classes implementing a database search.
 """
-from typing import Callable, List
+from typing import Callable, List, Optional
 import abc
 import re
 
@@ -53,9 +53,40 @@ def category_ltree(cls: str, typ: str) -> str:
 
 def category_filter(table: SaFromClause, cls: str, typ: str) -> SaExpression:
     """ Build a boolean expression selecting rows of the given class/type
-        category via the ltree categories column (class/type on SQLite).
+        category via the categories column.
     """
-    return CategoryMatch(table, category_ltree(cls, typ), cls, typ)
+    return CategoryMatch(table, category_ltree(cls, typ))
+
+
+def category_restriction(table: SaFromClause,
+                         details: SearchDetails) -> Optional[SaExpression]:
+    """ Build a boolean expression for the include/exclude category filters.
+
+        A row must match at least one category of every include group and
+        must not match all categories of any of the exclude groups. Returns
+        None when no category filters are requested.
+    """
+    terms: list[SaExpression] = []
+
+    for group in details.include:
+        terms.append(sa.or_(*(CategoryMatch(table, cat) for cat in group)))
+
+    for group in details.exclude:
+        terms.append(sa.not_(sa.and_(*(CategoryMatch(table, cat) for cat in group))))
+
+    if not terms:
+        return None
+
+    return sa.and_(*terms)
+
+
+def filter_by_category(sql: SaSelect, t: SaFromClause,
+                       details: SearchDetails) -> SaSelect:
+    """ Apply the include/exclude category filters, if applicable.
+    """
+    restriction = category_restriction(t, details)
+
+    return sql if restriction is None else sql.where(restriction)
 
 
 class AbstractSearch(abc.ABC):

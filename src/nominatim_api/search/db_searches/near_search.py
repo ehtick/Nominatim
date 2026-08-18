@@ -104,6 +104,7 @@ class NearSearch(base.AbstractSearch):
                                    .order_by(inner.c.dist)
 
         sql = sql.where(base.no_index(t.c.rank_address).between(MIN_RANK_PARAM, MAX_RANK_PARAM))
+        sql = base.filter_by_category(sql, t, details)
         if details.countries:
             sql = sql.where(t.c.country_code.in_(COUNTRIES_PARAM))
         if details.excluded:
