@@ -231,6 +231,54 @@ to the address layer (see above).
 
 | Parameter | Value | Default |
 |-----------| ----- | ------- |
+| include   | comma-separated list of categories | _unset_ (no restriction) |
+| exclude   | comma-separated list of categories | _unset_ (no restriction) |
+
+Filters that select or drop results by category. A category describes what kind
+of place an object is. It has the form `osm.<key>.<value>`, taken from a main
+OSM tag of the object, for example `osm.amenity.restaurant`. An object has one
+category for every main tag it carries. A place tagged with `tourism=hotel` and
+`amenity=restaurant` therefore has the categories `osm.tourism.hotel` and
+`osm.amenity.restaurant`.
+
+Categories are hierarchical and a filter matches the category itself as well as
+all its descendants. `include=osm.amenity` selects restaurants, cafes,
+pharmacies and everything else carrying an `amenity` tag. A category must
+consist of at least two labels separated by dots, so `include=osm` is rejected
+with an error. Only letters, digits and underscores may appear in a label.
+Hyphens of the original OSM tag are replaced with underscores when the category
+is created, so `shop=car-repair` is selected with
+`include=osm.shop.car_repair`.
+
+Both parameters may be repeated. Note that a comma and a repetition combine
+the categories in different ways:
+
+| Query | Returns places that |
+|-------|---------------------|
+| `include=osm.amenity.cafe` | have `osm.amenity.cafe` |
+| `include=osm.amenity.cafe,osm.amenity.bar` | have `osm.amenity.cafe` **or** `osm.amenity.bar` |
+| `include=osm.tourism.hotel&include=osm.amenity.restaurant` | have `osm.tourism.hotel` **and** `osm.amenity.restaurant` |
+| `exclude=osm.amenity.fast_food` | do not have `osm.amenity.fast_food` |
+| `exclude=osm.shop.bakery,osm.amenity.cafe` | do not have `osm.shop.bakery` **and** `osm.amenity.cafe` at the same time |
+| `exclude=osm.shop.bakery&exclude=osm.amenity.cafe` | have neither `osm.shop.bakery` **nor** `osm.amenity.cafe` |
+
+
+!!! note
+    Categories are only used for filtering, they are never part of the output.
+    The `category`/`class` and `type` fields of a result contain the single
+    main tag that Nominatim uses to classify the place. That is only one of
+    the categories the place may have.
+
+!!! note
+    A place without any category cannot satisfy `include`. Postcodes, address
+    interpolations, TIGER housenumbers and countries returned from
+    Nominatim's built-in country-list fallback (used when no matching OSM
+    boundary was found) therefore disappear from the results as soon as
+    `include` is used. `exclude` has no effect on them. Countries backed by
+    an OSM boundary keep their usual category and are filtered normally.
+
+| Parameter | Value | Default |
+|-----------| ----- | ------- |
 | exclude_place_ids | comma-separated list of ids (OSM IDs where possible, otherwise place_ids or stable postcode refs) |
 
 If you do not want certain OSM objects to appear in the search

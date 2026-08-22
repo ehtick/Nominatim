@@ -11,7 +11,7 @@ The import process creates the following tables:
 
 The `planet_osm_*` tables are the usual backing tables for OSM data. Note
 that Nominatim uses them to look up special relations and to find nodes on
-ways. Apart from those the osm2pgsql import produces three tables as output.
+ways. Apart from those the osm2pgsql import produces five tables as output.
 
 The **place_postcode** table collects postcode information that is not
 already present on an object in the place table. That is for one thing
@@ -54,17 +54,47 @@ has the following fields:
  * `extratags` - collection of additional interesting tags that are not
                  directly relevant for searching
  * `geometry` - geometry of the object (in WGS84)
+ * `categories` - all principal tags of the object, each one as a hierarchical
+                  label of the form `osm.<key>.<value>`
 
-A single OSM object may appear multiple times in this table when it is tagged
-with multiple tags that may constitute a principal tag. Take for example a
+An OSM object appears at most once in this table, even when it is tagged with
+more than one tag that may constitute a principal tag. Take for example a
 motorway bridge. In OSM, this would be a way which is tagged with
-`highway=motorway` and `bridge=yes`. This way would appear in the `place` table
-once with `class` of `highway` and once with a `class` of `bridge`. Thus the
-*unique key* for `place` is (`osm_type`, `osm_id`, `class`).
+`highway=motorway` and `bridge=yes`. This way gets a single row in the `place`
+table with `categories` of `{osm.highway.motorway, osm.bridge.yes}`. The
+*unique key* for `place` is therefore (`osm_type`, `osm_id`).
+
+The `class` and `type` columns still hold a single principal tag, the one that
+Nominatim uses to classify and rank the place. When an object has more than one
+principal tag, then the alphabetically first key/value pair wins. Tags that are
+only used as a fallback (see [Import styles](../customize/Import-Styles.md#main-tags))
+contribute a category but never become `class` and `type` unless they are the
+only principal tag of the object.
 
 How raw OSM tags are mapped to the columns in the place table is to a certain
 degree configurable. See [Customizing Import Styles](../customize/Import-Styles.md)
 for more information.
+
+The **place_entrance** table collects the nodes that are tagged as an entrance
+of a building or another feature. Nominatim does not make them searchable but
+returns them together with the enclosing place. The table has the following
+fields:
+
+ * `osm_id` - original OSM ID of the node
+ * `type` - value of the `entrance` tag
+ * `extratags` - any other tags of the entrance that may be interesting
+ * `geometry` - position of the node (in WGS84)
+
+The **place_associated_street** table saves the members of
+[associatedStreet relations](https://wiki.openstreetmap.org/wiki/Relation:associatedStreet).
+They are used to find the street a housenumber belongs to when no `addr:street`
+tag can be matched. The table has the following fields:
+
+ * `relation_id` - OSM ID of the relation
+ * `member_type`, `member_id` - reference to the OSM object that is a member
+   of the relation
+ * `member_role` - role of the member within the relation, usually `house`
+   or `street`
 
 ### Search tables
 
@@ -102,7 +132,20 @@ additional columns:
  * `token_info` - a dummy field used to inject information from the tokenizer
    into the indexing process
 
+The `categories` column is copied from the place table. It is an array of
+`ltree` values, so that a search for a category can use the containment
+operator `<@` and match all descendants of a category with a single comparison.
+The combined index `idx_placex_centroid_categories` over `centroid` and
+`categories` backs the search for POIs of a given category around a point.
+
 For implementation details, see the SQL definition in `lib-sql/tables/placex.sql` and the SQLAlchemy schema in `src/nominatim_api/sql/sqlalchemy_schema.py`.
+
+The **placex_entrance** table holds the entrances that could be assigned to a
+place, that is all entrance nodes that are part of the way of a place. The
+columns have the same meaning as in `place_entrance` with the exception of:
+
+ * `place_id` - reference to the place the entrance belongs to
+ * `location` - position of the entrance node
 
 The **location_property_osmline** table is a special table for
 [address interpolations](https://wiki.openstreetmap.org/wiki/Addresses#Using_interpolation).
@@ -188,6 +231,10 @@ selected subset of places:
 
 All other columns reflect their counterpart in the placex table.
 
+The **location_area_country** table is not partitioned. It caches the
+geometries of the country boundaries found in the data and is used to determine
+the country a place is located in.
+
 ## Static data tables
 
 Nominatim also creates a number of static tables at import:
@@ -206,7 +253,9 @@ Finally there are some table for auxiliary data:
 
  * `location_property_tiger` - saves housenumber from the Tiger import. Its
    layout is similar to that of `location_propoerty_osmline`.
- * `place_class_*` tables are helper tables to facilitate lookup of POIs
-   by their class and type. They exist because it is not possible to create
-   combined indexes with geometries.
+ * `import_polygon_error` - logs objects whose geometry was too broken to be
+   processed during an update
+ * `import_polygon_delete` - logs deletions of very large areas, which
+   Nominatim refuses to apply automatically, see
+   [Maintenance](../admin/Maintenance.md#removing-large-deleted-objects)
 

@@ -60,11 +60,12 @@ class OsmID:
     """ The OSM ID of the object.
     """
     osm_class: Optional[str] = None
-    """ The same OSM object may appear multiple times in the database under
-        different categories. The optional class parameter allows to distinguish
-        the different categories and corresponds to the key part of the category.
-        If there are multiple objects in the database and `osm_class` is
-        left out, then one of the objects is returned at random.
+    """ Optional restriction on the main tag of the object. It corresponds to
+        the key part of that tag. When it is given, then it must be equal to
+        the class of the object or the lookup returns nothing. Databases that
+        were migrated from a version before 5.4 may still hold one entry per
+        main tag. There the parameter selects between them and, when it is
+        left out, one of the entries is returned at random.
     """
 
     def __str__(self) -> str:
@@ -686,8 +687,11 @@ class SearchDetails(LookupDetails):
 
     categories: List[Tuple[str, str]] = dataclasses.field(default_factory=list,
                                                           metadata={'transform': format_categories})
-    """ Restrict search to places with one of the given class/type categories.
-        An empty list (the default) will disable this filter.
+    """ Restrict search to places with one of the given main tags, given as
+        class/type pairs. An empty list (the default) will disable this filter.
+
+        Deprecated. Use `include` instead, which restricts on the same
+        information in its hierarchical form.
     """
 
     include: list[list[str]] = \

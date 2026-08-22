@@ -33,6 +33,21 @@ map place {
   extratags => HSTORE
   admin_level => SMALLINT
   geometry => GEOMETRY
+  categories => LTREE[]
+}
+
+map place_entrance {
+  osm_id => BIGINT
+  type => TEXT
+  extratags => HSTORE
+  geometry => GEOMETRY
+}
+
+map place_associated_street {
+  relation_id => BIGINT
+  member_type => TEXT
+  member_id => BIGINT
+  member_role => TEXT
 }
 
 map place_postcode {
@@ -58,8 +73,12 @@ planet_osm_ways  -[hidden]> planet_osm_rels
 planet_osm_ways -[hidden]-> place
 place -[hidden]-> place_postcode
 place -[hidden]-> place_interpolation
+place_postcode -[hidden]-> place_entrance
+place_interpolation -[hidden]-> place_associated_street
 
 planet_osm_nodes::id <- planet_osm_ways::nodes
 planet_osm_nodes::id <- place_interpolation::nodes
+planet_osm_nodes::id <- place_entrance::osm_id
+planet_osm_rels::id <- place_associated_street::relation_id
 
 @enduml

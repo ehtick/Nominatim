@@ -19,6 +19,22 @@ breaking changes. **Please read them before running the migration.**
 
 ## 5.3.0 -> 5.4.0
 
+### Places are classified by categories now
+
+Places have a new `categories` column on the `place` and `placex` tables. It
+holds the main tags of a place as hierarchical labels of the form
+`osm.<class>.<type>`, see
+[Database layout](../develop/Database-Layout.md#import-tables). The migration
+adds the column and fills it in `placex` from the `class` and `type` of the
+existing rows.
+
+The backfill only covers what the category search needs: the places that make
+up an address above street level and the POI categories that have a special
+phrase. A migrated database also keeps its old layout of one row per main tag.
+Reimport if you want the new `include` and `exclude` filters of the
+[search API](../api/Search.md#result-restriction) to find a place under all of
+its main tags.
+
 ### The place_classtype tables are not used anymore
 
 Category search now runs against the `categories` column of `placex`, so the
