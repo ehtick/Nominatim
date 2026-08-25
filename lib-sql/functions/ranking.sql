@@ -97,9 +97,9 @@ BEGIN
   ELSIF rank_search < 24 THEN
     RETURN 0.02;
   ELSIF rank_search < 26 THEN
-    RETURN 0.002;
+    RETURN 0.005;
   ELSIF rank_search < 28 THEN
-    RETURN 0.001;
+    RETURN 0.002;
   END IF;
 
   RETURN 0;
