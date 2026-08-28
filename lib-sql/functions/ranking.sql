@@ -7,11 +7,11 @@
 
 -- Functions related to search and address ranks
 
--- function for removing the categories that shouldn't be taken into account while ranking.
--- categories outside the osm.* tree are always kept.
+-- Function for removing the categories that shouldn't be taken into account while ranking.
+-- Categories outside the osm.* tree are always kept.
 CREATE OR REPLACE FUNCTION drop_unwanted_categories(categories ltree[], osm_type TEXT,
-                                  admin_level SMALLINT, name HSTORE,
-                                  extratags HSTORE, is_area BOOLEAN)
+                                                    admin_level SMALLINT, name HSTORE,
+                                                    extratags HSTORE, is_area BOOLEAN)
   RETURNS ltree[]
   AS $$
 DECLARE
@@ -25,27 +25,27 @@ BEGIN
 
   FOREACH cat IN ARRAY categories LOOP
     IF cat::TEXT LIKE 'osm.%' THEN
-      cat_class :=subpath(cat,1,1)::TEXT;
+      cat_class := subpath(cat, 1, 1)::TEXT;
 
-      -- our 1st condition - unnamed highway with area = yes
-      IF cat_class='highway'
-        AND is_area=TRUE AND name IS NULL
+      -- Check unnamed highway area
+      IF cat_class = 'highway'
+        AND is_area AND name IS NULL
         AND extratags IS NOT NULL AND extratags ? 'area'
-        AND extratags -> 'area' = 'yes'
+        AND extratags->'area' = 'yes'
       THEN
         CONTINUE;
       END IF;
 
-      -- our 2nd and 3rd condition - bad Boundary
-      IF cat_class ='boundary' THEN
-        IF is_area=FALSE OR (admin_level<=4 AND osm_type='W')
+      -- Check non-area boundary
+      IF cat_class = 'boundary' THEN
+        IF NOT is_area OR (admin_level <= 4 AND osm_type = 'W')
         THEN
           CONTINUE;
         END IF;
       END IF;
     END IF;
 
-    result:=array_append(result,cat);
+    result := array_append(result, cat);
   END LOOP;
 
   RETURN result;
@@ -60,13 +60,12 @@ CREATE OR REPLACE FUNCTION is_rankable_place(osm_type TEXT, categories ltree[],
                                              extratags HSTORE, is_area BOOLEAN)
   RETURNS BOOLEAN
   AS $$
-
 BEGIN
   IF categories IS NULL THEN
     RETURN TRUE;
   END IF;
   RETURN array_length(drop_unwanted_categories(categories, osm_type, admin_level,
-                      name, extratags, is_area ),1)
+                      name, extratags, is_area), 1)
                       IS NOT NULL;
 END;
 $$
