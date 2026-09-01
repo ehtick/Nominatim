@@ -298,7 +298,7 @@ BEGIN
         ORDER BY geometry <-> point
         LIMIT 1
     LOOP
-      IF r.dist < 0.1 THEN
+      IF r.dist < 0.06 THEN
         RETURN r.place_id;
       END IF;
       RETURN NULL;
