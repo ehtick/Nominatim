@@ -161,12 +161,13 @@ BEGIN
 
 {% for partition in db.partitions %}
   IF in_partition = {{ partition }} THEN
-    SELECT place_id FROM search_name_{{ partition }}
+    SELECT CASE WHEN token_matches_street(token_info, name_vector) THEN place_id ELSE NULL END
       INTO parent
-      WHERE token_matches_street(token_info, name_vector)
-            AND centroid && ST_Expand(point, 0.015)
+      FROM search_name_{{ partition }}
+      WHERE (token_matches_street(token_info, name_vector)
+             OR ST_Distance(centroid, point) > 0.1)
             AND address_rank between 26 and 27
-      ORDER BY ST_Distance(centroid, point) ASC limit 1;
+      ORDER BY centroid <-> point LIMIT 1;
     RETURN parent;
   END IF;
 {% endfor %}
@@ -190,13 +191,13 @@ BEGIN
 
 {% for partition in db.partitions %}
   IF in_partition = {{ partition }} THEN
-    SELECT place_id
+    SELECT CASE WHEN token_matches_place(token_info, name_vector) THEN place_id ELSE NULL END
       INTO parent
       FROM search_name_{{ partition }}
-      WHERE token_matches_place(token_info, name_vector)
-            AND centroid && ST_Expand(point, 0.04)
+      WHERE (token_matches_place(token_info, name_vector)
+             OR ST_Distance(centroid, point) > 0.1)
             AND address_rank between 16 and 25
-      ORDER BY ST_Distance(centroid, point) ASC limit 1;
+      ORDER BY centroid <-> point LIMIT 1;
     RETURN parent;
   END IF;
 {% endfor %}
@@ -287,21 +288,20 @@ CREATE OR REPLACE FUNCTION getNearestRoadPlaceId(in_partition INTEGER, point GEO
   AS $$
 DECLARE
   r RECORD;
-  search_diameter FLOAT;
 BEGIN
 
 {% for partition in db.partitions %}
   IF in_partition = {{ partition }} THEN
-    search_diameter := 0.00005;
-    WHILE search_diameter < 0.1 LOOP
-      FOR r IN
-        SELECT place_id FROM location_road_{{ partition }}
-          WHERE ST_DWithin(geometry, point, search_diameter)
-          ORDER BY ST_Distance(geometry, point) ASC limit 1
-      LOOP
+    FOR r IN
+      SELECT place_id, ST_Distance(geometry, point) as dist
+        FROM location_road_{{ partition }}
+        ORDER BY geometry <-> point
+        LIMIT 1
+    LOOP
+      IF r.dist < 0.06 THEN
         RETURN r.place_id;
-      END LOOP;
-      search_diameter := search_diameter * 2;
+      END IF;
+      RETURN NULL;
     END LOOP;
     RETURN NULL;
   END IF;
