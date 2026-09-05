@@ -110,11 +110,14 @@ BEGIN
       SELECT * INTO search_rank, address_rank
         FROM compute_place_rank(existingplacex.country_code,
                                 CASE WHEN is_area THEN 'A' ELSE NEW.osm_type END,
-                                NEW.categories, NEW.admin_level,
+                                drop_unwanted_categories(NEW.categories, NEW.osm_type,
+                                                         NEW.admin_level, NEW.name,
+                                                         NEW.extratags, is_area),
+                                NEW.admin_level,
                                 (NEW.extratags->'capital') = 'yes',
                                 NEW.address->'postcode');
 
-      existing_is_area := ST_GeometryType(existingplacex.geometry) in ('ST_Polygon','ST_MultiPolygon');
+      existing_is_area := ST_GeometryType(existingplacex.geometry) in ('ST_Polygon', 'ST_MultiPolygon');
 
       IF (address_rank BETWEEN 4 and 27
           AND (existingplacex.rank_address <= 0 OR existingplacex.rank_address > 27))
